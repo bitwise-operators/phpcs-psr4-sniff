@@ -1,9 +1,20 @@
-# suin/phpcs-psr4-sniff
+# bitwise-operators/phpcs-psr4-sniff
 
 A custom [PHP Code Sniffer] sniff to help to find classes that is not compliant with [PSR-4 Autoloader].
 
 [PHP Code Sniffer]: https://github.com/squizlabs/PHP_CodeSniffer
 [PSR-4 Autoloader]: https://www.php-fig.org/psr/psr-4/
+
+# Public fork of abandoned package
+
+This package was originally hosted at https://github.com/suin/phpcs-psr4-sniff, but seems to be abandoned. 
+For ease of migration, the original namespacing has been kept.
+
+To switch to this package, use the commands
+```
+composer remove suin/phpcs-psr4-sniff
+composer require bitwise-operators/phpcs-psr4-sniff
+```
 
 ## Demo
 
@@ -33,7 +44,7 @@ As this sniff respects `composer.json` [autoloading configuration], you don't ha
 
 [Psr4Fixer] checkes if class names should match the file name and fixes the class names if its don't correspond to the file names. It doesn't check the namespaces.
 
-In contrast, suin/phpcs-psr4-sniff checks not only class names but also namespaces.
+In contrast, this package checks not only class names but also namespaces.
 
 [Psr4Fixer]:https://github.com/FriendsOfPHP/PHP-CS-Fixer/blob/master/src/Fixer/Basic/Psr4Fixer.php
 
@@ -84,8 +95,8 @@ vendor/bin/phpcs src
 
 ## Changelog
 
-Please see [CHANGELOG](https://github.com/suin/php/blob/master/CHANGELOG.md) for more details.
+Please see [CHANGELOG](https://github.com/bitwise-operators/phpcs-psr4-sniff/blob/master/CHANGELOG.md) for more details.
 
 ## Contributing
 
-Send [issue](https://github.com/suin/php/issues) or [pull-request](https://github.com/suin/php/pulls) to main repository.
+Send [issue](https://github.com/bitwise-operators/phpcs-psr4-sniff/issues) or [pull-request](https://github.com/bitwise-operators/phpcs-psr4-sniff/pulls) to main repository.
