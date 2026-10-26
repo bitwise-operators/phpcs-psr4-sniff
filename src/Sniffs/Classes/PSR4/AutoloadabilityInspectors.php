@@ -4,31 +4,34 @@ declare(strict_types=1);
 
 namespace Suin\Sniffs\Classes\PSR4;
 
+use function array_values;
+
 final class AutoloadabilityInspectors
 {
-    /**
-     * @var AutoloadabilityInspector[]
-     */
-    private $inspectors = [];
+    /** @var list<AutoloadabilityInspector> */
+    private array $inspectors = [];
 
-    public function __construct(AutoloadabilityInspector ...$inspectors)
-    {
-        $this->inspectors = $inspectors;
+    public function __construct(
+        AutoloadabilityInspector ...$inspectors,
+    ) {
+        $this->inspectors = array_values($inspectors);
     }
 
-    /**
-     * @noinspection MultipleReturnStatementsInspection
-     */
     public function inspect(
-        ClassFileUnderInspection $classFile
+        ClassFileUnderInspection $classFile,
     ): InspectionResult {
-        foreach ($this->inspectors as $inspector) {
-            $result = $inspector->inspect($classFile);
+        $result = null;
 
-            if ($result->isPsr4RelatedClass()) {
-                return $result;
+        foreach ($this->inspectors as $inspector) {
+            $inspectionResult = $inspector->inspect($classFile);
+
+            if ($inspectionResult->isPsr4RelatedClass()) {
+                $result = $inspectionResult;
+                break;
             }
         }
-        return new PSR4UnrelatedClass();
+
+        return $result
+            ?? new PSR4UnrelatedClass();
     }
 }

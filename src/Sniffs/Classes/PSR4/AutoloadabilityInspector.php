@@ -4,91 +4,98 @@ declare(strict_types=1);
 
 namespace Suin\Sniffs\Classes\PSR4;
 
-final class AutoloadabilityInspector
+use RuntimeException;
+
+use function assert;
+use function basename;
+use function mb_strlen;
+use function mb_substr;
+use function pathinfo;
+use function realpath;
+use function rtrim;
+use function str_ends_with;
+use function str_replace;
+use function str_starts_with;
+
+use const PATHINFO_DIRNAME;
+use const PATHINFO_FILENAME;
+
+final readonly class AutoloadabilityInspector
 {
-    /**
-     * @var string
-     */
-    private $baseDirectory;
+    private string $baseDirectory;
 
-    /**
-     * @var string
-     */
-    private $namespacePrefix;
+    private string $namespacePrefix;
 
-    public function __construct(string $baseDirectory, string $namespacePrefix)
-    {
-        $this->baseDirectory = \rtrim($baseDirectory, '/') . '/';
-        $this->namespacePrefix = \rtrim($namespacePrefix, '\\') . '\\';
-    }
-
-    public function inspect(
-        ClassFileUnderInspection $classFile
-    ): InspectionResult {
-        return $this->classFileIsUnderBaseDirectory($classFile) ?
-            $this->inspectAutoloadability($classFile) :
-            new PSR4UnrelatedClass();
+    public function __construct(
+        string $baseDirectory,
+        string $namespacePrefix,
+    ) {
+        $realBaseDirectory = realpath($baseDirectory);
+        if ($realBaseDirectory === false) {
+            throw new RuntimeException("Invalid path {$baseDirectory}");
+        }
+        $this->baseDirectory = rtrim($realBaseDirectory, '/') . '/';
+        $this->namespacePrefix = rtrim($namespacePrefix, '\\') . '\\';
     }
 
     private function classFileIsUnderBaseDirectory(
-        ClassFileUnderInspection $classFile
+        ClassFileUnderInspection $classFile,
     ): bool {
-        return \strpos($classFile->getFileName(), $this->baseDirectory) === 0;
-    }
-
-    private function inspectAutoloadability(
-        ClassFileUnderInspection $classFile
-    ): InspectionResult {
-        $expectedClassName = $this->guessExpectedClassName($classFile);
-        $actualClassName = $classFile->getClassName();
-        return $expectedClassName === $actualClassName ?
-            new AutoloadableClass() :
-            new NonAutoloadableClass($expectedClassName, $actualClassName);
+        return str_starts_with($classFile->getFileName(), $this->baseDirectory);
     }
 
     private function guessExpectedClassName(
-        ClassFileUnderInspection $classFile
+        ClassFileUnderInspection $classFile,
     ): string {
         $relativeFileName = $this->guessRelativeFileName($classFile);
         $relativeClassName = $this->guessRelativeClassName($relativeFileName);
         return $this->guessFullyQualifiedClassName($relativeClassName);
     }
 
-    private function guessRelativeFileName(
-        ClassFileUnderInspection $classFile
-    ): string {
-        \assert($this->directoryEndsWithSlash());
-        \assert($this->classFileIsUnderBaseDirectory($classFile));
-        return \substr(
-            $classFile->getFileName(),
-            \strlen($this->baseDirectory)
-        );
-    }
-
-    private function guessRelativeClassName(string $relativeFileName): string
-    {
-        $basename = \basename($relativeFileName);
-        $filename = \pathinfo($relativeFileName, \PATHINFO_FILENAME);
-        $dirname = $basename === $relativeFileName ?
-            '' :
-            \pathinfo($relativeFileName, \PATHINFO_DIRNAME) . '/';
-        return \str_replace('/', '\\', $dirname) . $filename;
-    }
-
     private function guessFullyQualifiedClassName(
-        string $relativeClassName
+        string $relativeClassName,
     ): string {
-        \assert($this->namespaceEndsWithBackslash());
+        assert(str_ends_with($this->namespacePrefix, '\\'));
         return $this->namespacePrefix . $relativeClassName;
     }
 
-    private function directoryEndsWithSlash(): bool
-    {
-        return \substr($this->baseDirectory, -1) === '/';
+    private function guessRelativeClassName(
+        string $relativeFileName,
+    ): string {
+        $basename = basename($relativeFileName);
+        $filename = pathinfo($relativeFileName, PATHINFO_FILENAME);
+        $dirname = $basename === $relativeFileName
+            ? ''
+            : pathinfo($relativeFileName, PATHINFO_DIRNAME) . '/';
+        return str_replace('/', '\\', $dirname) . $filename;
     }
 
-    private function namespaceEndsWithBackslash(): bool
-    {
-        return \substr($this->namespacePrefix, -1) === '\\';
+    private function guessRelativeFileName(
+        ClassFileUnderInspection $classFile,
+    ): string {
+        assert(str_ends_with($this->baseDirectory, '/'));
+        assert($this->classFileIsUnderBaseDirectory($classFile));
+        return mb_substr(
+            $classFile->getFileName(),
+            mb_strlen($this->baseDirectory),
+        );
+    }
+
+    public function inspect(
+        ClassFileUnderInspection $classFile,
+    ): InspectionResult {
+        return $this->classFileIsUnderBaseDirectory($classFile)
+            ? $this->inspectAutoloadability($classFile)
+            : new PSR4UnrelatedClass();
+    }
+
+    private function inspectAutoloadability(
+        ClassFileUnderInspection $classFile,
+    ): InspectionResult {
+        $expectedClassName = $this->guessExpectedClassName($classFile);
+        $actualClassName = $classFile->getClassName();
+        return $expectedClassName === $actualClassName
+            ? new AutoloadableClass()
+            : new NonAutoloadableClass($expectedClassName, $actualClassName);
     }
 }

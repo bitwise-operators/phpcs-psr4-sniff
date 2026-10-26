@@ -32,10 +32,15 @@
         "issues": "https://github.com/bitwise-operators/phpcs-psr4-sniff/issues"
     },
     "require": {
-        "php": ">=7.1",
+        "php": ">=8.4",
         "ext-json": "*",
         "slevomat/coding-standard": ">=4.7 <9.0.0",
         "squizlabs/php_codesniffer": ">=3.3 <4.0.0"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^2.3",
+        "rector/rector": "^2.7",
+        "symplify/easy-coding-standard": "^13.3"
     },
     "autoload": {
         "psr-4": {
@@ -52,5 +57,19 @@
         "allow-plugins": {
             "dealerdirect/phpcodesniffer-composer-installer": true
         }
+    },
+    "scripts": {
+        "analyze": "php -d memory_limit=-1 vendor/bin/phpstan --configuration=phpstan.neon analyse",
+        "codestyle": "php vendor/bin/ecs check --config=dev/ecs.php",
+        "codestyle-fix": "@codestyle --fix",
+        "pre-commit": [
+            "@analyze",
+            "@rector-fix",
+            "@codestyle-fix",
+            "@sanitize"
+        ],
+        "rector": "@rector-fix --dry-run",
+        "rector-fix": "php vendor/bin/rector --config=rector.php",
+        "sanitize": "grep -e '\\s+$' -E --include='*.php' -l -r src tests | xargs -r -d '\\n' sed -i -E -e 's/\\s+$//g'"
     }
 }

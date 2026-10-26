@@ -4,15 +4,26 @@ declare(strict_types=1);
 
 namespace Suin\Sniffs\Classes\PSR4;
 
-final class AutoloadableClass implements InspectionResult
+use LogicException;
+use Override;
+
+final readonly class AutoloadableClass implements InspectionResult
 {
-    public function isAutoloadable(): bool
-    {
+    #[Override]
+    public function getErrorMessage(
+    ): never {
+        throw new LogicException();
+    }
+
+    #[Override]
+    public function isAutoloadable(
+    ): bool {
         return true;
     }
 
-    public function isPsr4RelatedClass(): bool
-    {
+    #[Override]
+    public function isPsr4RelatedClass(
+    ): bool {
         return true;
     }
 }

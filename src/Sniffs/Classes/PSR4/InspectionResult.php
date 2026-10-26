@@ -6,7 +6,12 @@ namespace Suin\Sniffs\Classes\PSR4;
 
 interface InspectionResult
 {
-    public function isAutoloadable(): bool;
+    public function getErrorMessage(
+    ): string;
 
-    public function isPsr4RelatedClass(): bool;
+    public function isAutoloadable(
+    ): bool;
+
+    public function isPsr4RelatedClass(
+    ): bool;
 }

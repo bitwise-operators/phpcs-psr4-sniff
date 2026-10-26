@@ -6,6 +6,7 @@ declare(strict_types=1);
 
 namespace Suin\Sniffs\Classes\DemoTest;
 
+use Override;
 use SlevomatCodingStandard\Sniffs\TestCase;
 use Suin\Sniffs\Classes\PSR4Sniff;
 
@@ -34,6 +35,7 @@ final class DemoTest extends TestCase
     }
 
     /** @noinspection PhpMissingParentCallCommonInspection */
+    #[Override]
     protected static function getSniffClassName(): string
     {
         return PSR4Sniff::class;

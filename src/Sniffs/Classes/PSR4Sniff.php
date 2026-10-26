@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Suin\Sniffs\Classes;
 
+use Override;
 use PHP_CodeSniffer\Config;
 use PHP_CodeSniffer\Files\File;
 use PHP_CodeSniffer\Sniffs\Sniff;
@@ -12,108 +13,100 @@ use SlevomatCodingStandard\Helpers\TokenHelper;
 use Suin\Sniffs\Classes\PSR4\AutoloadabilityInspectors;
 use Suin\Sniffs\Classes\PSR4\AutoloadabilityInspectorsFactory;
 use Suin\Sniffs\Classes\PSR4\ClassFileUnderInspection;
-use Suin\Sniffs\Classes\PSR4\NonAutoloadableClass;
+use Suin\Sniffs\Classes\PSR4\InspectionResult;
+
+use function assert;
+use function is_string;
+
+use const T_CLASS;
+use const T_INTERFACE;
+use const T_STRING;
+use const T_TRAIT;
 
 final class PSR4Sniff implements Sniff
 {
-    public const CODE_INCORRECT_CLASS_NAME = 'IncorrectClassName';
+    public const string CODE_INCORRECT_CLASS_NAME = 'IncorrectClassName';
 
-    private const INITIALIZED = 1;
+    private const int INITIALIZATION_FAILURE = -1;
+    private const int INITIALIZED = 1;
+    private const int UNINITIALIZED = 0;
 
-    private const UNINITIALIZED = 0;
-
-    private const INITIALIZATION_FAILURE = -1;
+    private AutoloadabilityInspectors $autoloadabilityInspectors;
 
     /**
      * File path of "composer.json".
-     *
      * This must be relative path to "--basepath" option of phpcs command.
-     *
-     * @var null|string
      */
-    public $composerJsonPath = 'composer.json';
+    public string $composerJsonPath = 'composer.json';
 
-    /**
-     * @var int
-     */
-    private $initialization = self::UNINITIALIZED;
+    private int $initialization = self::UNINITIALIZED;
 
-    /**
-     * @var AutoloadabilityInspectors
-     */
-    private $autoloadabilityInspectors;
-
-    /**
-     * {@inheritdoc}
-     */
-    public function register(): array
-    {
-        return [\T_CLASS, \T_INTERFACE, \T_TRAIT];
+    private function addError(
+        File $phpcsFile,
+        InspectionResult $result,
+        int $typePointer,
+    ): void {
+        $phpcsFile->addError(
+            $result->getErrorMessage(),
+            TokenHelper::findNext($phpcsFile, T_STRING, $typePointer + 1),
+            self::CODE_INCORRECT_CLASS_NAME,
+        );
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function process(File $phpcsFile, $typePointer): void
-    {
-        $this->initializeThisSniffIfNotYet($phpcsFile->config);
-
-        if ($this->initialization === self::INITIALIZATION_FAILURE) {
-            return;
-        }
-
-        $classFile = $this->getClassFileOf($phpcsFile, $typePointer);
-        $result = $this->autoloadabilityInspectors->inspect($classFile);
-
-        if ($result instanceof NonAutoloadableClass) {
-            $this->addError($phpcsFile, $result, $typePointer);
-        }
-    }
-
-    private function initializeThisSniffIfNotYet(Config $config): void
-    {
+    private function initializeThisSniffIfNotYet(
+        Config $config,
+    ): void {
         if ($this->initialization === self::UNINITIALIZED) {
             $this->initialization = self::INITIALIZATION_FAILURE;
-            $this->autoloadabilityInspectors =
-                AutoloadabilityInspectorsFactory::create(
-                    $config->getSettings()['basepath'],
-                    $this->composerJsonPath
-                );
+            $basepath = $config->getSettings()['basepath'];
+            assert($basepath === null || is_string($basepath));
+            $this->autoloadabilityInspectors = AutoloadabilityInspectorsFactory::create(
+                $basepath,
+                $this->composerJsonPath,
+            );
             $this->initialization = self::INITIALIZED;
         }
     }
 
-    private function getClassFileOf(
+    /**
+     * {@inheritdoc}
+     */
+    #[Override]
+    public function process(
         File $phpcsFile,
-        $typePointer
-    ): ClassFileUnderInspection {
-        return new ClassFileUnderInspection(
-            $phpcsFile->getFilename(),
-            ClassHelper::getFullyQualifiedName($phpcsFile, $typePointer)
-        );
-    }
-
-    private function addError(
-        File $phpcsFile,
-        NonAutoloadableClass $result,
-        int $typePointer
+        $typePointer,
     ): void {
-        $phpcsFile->addError(
-            \sprintf(
-                'Class name is not compliant with PSR-4 configuration. ' .
-                'It should be `%s` instead of `%s`.',
-                $result->getExpectedClassName(),
-                $result->getActualClassName()
-            ),
-            $this->getClassNameDeclarationPosition($phpcsFile, $typePointer),
-            self::CODE_INCORRECT_CLASS_NAME
-        );
+        $this->initializeThisSniffIfNotYet($phpcsFile->config);
+
+        if ($this->initialization !== self::INITIALIZATION_FAILURE) {
+            $result = $this->autoloadabilityInspectors
+                ->inspect(
+                    new ClassFileUnderInspection(
+                        $phpcsFile->getFilename(),
+                        ClassHelper::getFullyQualifiedName($phpcsFile, $typePointer),
+                    ),
+                )
+            ;
+
+            if (
+                $result->isPsr4RelatedClass()
+                && !$result->isAutoloadable()
+            ) {
+                $this->addError($phpcsFile, $result, $typePointer);
+            }
+        }
     }
 
-    private function getClassNameDeclarationPosition(
-        File $phpcsFile,
-        int $typePointer
-    ): ?int {
-        return TokenHelper::findNext($phpcsFile, \T_STRING, $typePointer + 1);
+    /**
+     * {@inheritdoc}
+     */
+    #[Override]
+    public function register(
+    ): array {
+        return [
+            T_CLASS,
+            T_INTERFACE,
+            T_TRAIT,
+        ];
     }
 }
